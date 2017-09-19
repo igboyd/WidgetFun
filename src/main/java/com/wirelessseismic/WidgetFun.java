@@ -1,38 +1,42 @@
 package com.wirelessseismic;
 
-import com.google.common.eventbus.EventBus;
-
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.concurrent.*;
 
 public class WidgetFun {
 
-    private static final int THREAD_POOL = 7;
     private static final int PRODUCER_THREADS = 5;
     private static final int CONSUMER_THREADS = 2;
     private static final int RUN_TIME = 50;
 
-    private BlockingQueue<Widget> widgetBlockingQueue;
     private ScheduledExecutorService producerService;
+    private ScheduledExecutorService consumerService;
     private WidgetFunStatus widgetFunStatus;
-    private EventBus eventBus;
 
     public WidgetFun() {
-        widgetBlockingQueue = new LinkedBlockingQueue<>();
-        producerService = Executors.newScheduledThreadPool(THREAD_POOL);
-        eventBus = new EventBus();
-        widgetFunStatus = new WidgetFunStatus(eventBus);
+        producerService = Executors.newScheduledThreadPool(PRODUCER_THREADS);
+        consumerService = Executors.newScheduledThreadPool(CONSUMER_THREADS);
+        widgetFunStatus = new WidgetFunStatus();
     }
 
     public void startUp(){
         for(int i = 0; i < PRODUCER_THREADS; i++) {
-            WidgetProducer.scheduleProducer(producerService, widgetBlockingQueue, RUN_TIME, eventBus);
+            WidgetProducer.scheduleProducer(producerService, widgetFunStatus, RUN_TIME);
         }
-        for(int i = 0; i < CONSUMER_THREADS; i++) {
-            WidgetConsumer.scheduleConsumer(producerService, widgetBlockingQueue, RUN_TIME, eventBus);
-        }
-
-        producerService.scheduleWithFixedDelay(new ServiceShutdownTask(), RUN_TIME,
+        producerService.scheduleWithFixedDelay(new ProducerShutdownTask(), RUN_TIME,
                 1, TimeUnit.SECONDS);
+
+        for(int i = 0; i < CONSUMER_THREADS; i++) {
+            WidgetConsumer.scheduleConsumer(consumerService, widgetFunStatus, RUN_TIME);
+        }
+        consumerService.scheduleWithFixedDelay(new ConsumerShutdownTask(), RUN_TIME,
+                1, TimeUnit.SECONDS);
+
+
+
+
     }
 
 
@@ -40,14 +44,33 @@ public class WidgetFun {
         new WidgetFun().startUp();
     }
 
-    class ServiceShutdownTask implements Runnable {
+    class ProducerShutdownTask implements Runnable {
         @Override
         public void run() {
-            if(widgetBlockingQueue.isEmpty()){
-                System.out.println(widgetBlockingQueue.size());
-                producerService.shutdown();
-                System.out.println(widgetFunStatus);
+            producerService.shutdown();
+            System.out.println(widgetFunStatus);
+        }
+    }
+
+    class ConsumerShutdownTask implements Runnable {
+        @Override
+        public void run() {
+            while(widgetFunStatus.hasUnprocessedWidgets()){
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            consumerService.shutdown();
+            System.out.println(widgetFunStatus);
+            try {
+                Files.createFile(Paths.get("widgetFun.log"));
+                Files.write(Paths.get("widgetFun.log"), widgetFunStatus.toString().getBytes());
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
     }
 }
+
