@@ -2,7 +2,9 @@ package com.wirelessseismic;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.concurrent.*;
 
 public class WidgetFun {
@@ -65,8 +67,11 @@ public class WidgetFun {
             consumerService.shutdown();
             System.out.println(widgetFunStatus);
             try {
-                Files.createFile(Paths.get("widgetFun.log"));
-                Files.write(Paths.get("widgetFun.log"), widgetFunStatus.toString().getBytes());
+                final Path path = Paths.get("widgetFun.log");
+                if(!Files.exists(path)){
+                    Files.createFile(path);
+                }
+                Files.write(path, widgetFunStatus.toString().getBytes(), StandardOpenOption.APPEND);
             } catch (IOException e) {
                 e.printStackTrace();
             }

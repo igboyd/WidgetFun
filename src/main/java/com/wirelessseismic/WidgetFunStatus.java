@@ -30,6 +30,7 @@ public class WidgetFunStatus {
         for(final WidgetHandler widgetHandler : widgetThreadStatusMap.keySet()){
             sb.append(widgetThreadStatusMap.get(widgetHandler).toString()).append("\n");
         }
+        sb.append("\n\n\n");
         return sb.toString();
 
     }
@@ -42,7 +43,7 @@ public class WidgetFunStatus {
         return added;
     }
 
-    public synchronized void reportWidgetHandled(final WidgetHandler widgetHandler){
+    public void reportWidgetHandled(final WidgetHandler widgetHandler){
         WidgetThreadStatus threadStatus = widgetThreadStatusMap.get(widgetHandler);
         if(threadStatus == null){
             threadStatus = new WidgetThreadStatus(widgetHandler, Thread.currentThread().getId());
